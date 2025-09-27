@@ -5,6 +5,7 @@ from ultralytics import YOLO
 
 # load YOLO
 yolo = YOLO("yolo_tb_finetune.pt")
+yolo.to("cuda")
 
 # load mediapipe hands
 mp_hands = mp.solutions.hands
@@ -21,8 +22,8 @@ mp_styles = mp.solutions.drawing_styles
 # setup opencv
 cap = cv2.VideoCapture(0)
 
-def draw_face_landmarks(frame, face_landmarks):
-  """Draw all face landmarks and connections."""
+# draw all face landmarks and connections.
+def draw_face_landmarks(frame, face_landmarks, mp_fm=mp_fm, mp_drawing=mp_drawing, mp_styles=mp_styles):
   mp_drawing.draw_landmarks(
     image=frame,
     landmark_list=face_landmarks,
@@ -31,14 +32,9 @@ def draw_face_landmarks(frame, face_landmarks):
     connection_drawing_spec=mp_styles.get_default_face_mesh_tesselation_style()
   )
 
-while cap.isOpened():
-  # capture frame
-  success, frame = cap.read()
-  if not success:
-    break
-  
-  # YOLO inference
-  yolo_res = yolo.predict(frame, conf=0.25, verbose=False)
+# get bounding boxes for toothbrush
+def yolo_predict(frame, draw=False, yolo=yolo):
+  yolo_res = yolo.predict(frame, conf=0.25, verbose=False, device="cuda:1")
   boxes = yolo_res[0].boxes
   
   # Filter boxes for class ID 14
@@ -57,35 +53,40 @@ while cap.isOpened():
           "conf": conf,
           "class_id": target_class
         }
+  
   # Draw the bounding box for the toothbrush if detected
-  if tb_bbox is not None:
+  if draw and tb_bbox is not None:
     x1, y1, x2, y2 = map(int, tb_bbox["bbox"])
     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
     cv2.putText(frame, f"Toothbrush: {tb_bbox['conf']:.2f}", (x1, y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
-    
+  
+  return tb_bbox
+
+def hand_predict(frame, draw=False, hands=hands):
   # hands inference
   results = hands.process(frame)
 
   if results.multi_hand_landmarks:
-    for handLms in results.multi_hand_landmarks:
-      mp_drawing.draw_landmarks(frame, handLms, mp_hands.HAND_CONNECTIONS)
+    if draw:
+      for handLms in results.multi_hand_landmarks:
+        mp_drawing.draw_landmarks(frame, handLms, mp_hands.HAND_CONNECTIONS)
+    return results.multi_hand_landmarks
 
-  # mouth inference
+  return None
+
+def mouth_predict(frame, draw=False, mp_fd=mp_fd, mp_fm=mp_fm):
   with mp_fd.FaceDetection(model_selection=0, min_detection_confidence=0.5) as fd, mp_fm.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True) as fm:
     # Face box (optional – useful to skip mesh when no face)
     fdet = fd.process(frame)
     if not fdet.detections:
-      cv2.imshow("cam", frame)
-      if cv2.waitKey(1) == 27: break
-      continue
-          
+      return None   
+    
     # Landmarks (gives lips)
     res = fm.process(frame)
     if res.multi_face_landmarks:
       h, w = frame.shape[:2]
       face_landmarks = res.multi_face_landmarks[0]
-      draw_face_landmarks(frame, face_landmarks)
       
       # --- Calculate mouth bbox ---
       lip_idx = np.unique(np.array(list(mp_fm.FACEMESH_LIPS)).flatten())
@@ -93,6 +94,8 @@ while cap.isOpened():
       x1, y1 = lip_pts.min(axis=0)
       x2, y2 = lip_pts.max(axis=0)
       mouth_height = y2 - y1
+      mouth_center_x = (x1 + x2) / 2
+      mouth_center_y = (y1 + y2) / 2
       
         # --- Calculate face bbox height (from detection box) ---
       det = fdet.detections[0]
@@ -103,16 +106,42 @@ while cap.isOpened():
 
       # --- Normalized mouth-open ratio ---
       mouth_open_ratio = mouth_height / max(1, face_height)
+      mouth_open = mouth_open_ratio > 0.235
+      
+      if draw:    
+        if mouth_open:
+          color = (0, 255, 0)
+        else:
+          color = (0, 0, 255)
+        cv2.rectangle(frame, (x1,y1), (x2,y2), color, 2)
+        draw_face_landmarks(frame, face_landmarks)
+      
+      return (mouth_open, mouth_center_x, mouth_center_y)
+    return None
+      
 
-      # Optional: threshold to classify open/closed
-      if mouth_open_ratio > 0.235:  # <-- tune threshold per dataset/camera
-        color = (0, 255, 0)
-      else:
-        color = (0, 0, 255)
-          
-      cv2.rectangle(frame, (x1,y1), (x2,y2), color, 2)
+while cap.isOpened():
+  # capture frame
+  success, frame = cap.read()
+  if not success:
+    break
+  
+  # run inference
+  yolo = yolo_predict(frame, True)
+  hands = hand_predict(frame, True)
+  mouth = mouth_predict(frame, True)  
 
+  # show frame
   cv2.imshow("Toothbrush Detection", frame)
+
+  # verify we can detect the toothbrush, mouth, and hands
+  if yolo is not None and mouth is not None and hands is not None:
+    # unpack the results
+    tb_bbox = yolo
+    mouth_open, mouth_center_x, mouth_center_y = mouth
+    
+    print(tb_bbox, mouth_open, mouth_center_x, mouth_center_y)
+  
   if cv2.waitKey(1) & 0xFF == ord('q'):
     break
   
