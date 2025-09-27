@@ -4,7 +4,7 @@ import mediapipe as mp
 from ultralytics import YOLO
 
 # load YOLO
-yolo = YOLO("yolo_tb_finetune.pt")
+yolo = YOLO("yolo_tb_finetune2.pt")
 yolo.to("cuda")
 
 # load mediapipe hands
@@ -127,8 +127,8 @@ while cap.isOpened():
     break
   
   # run inference
-  yolo = yolo_predict(frame, False)
-  hands = hand_predict(frame, False)
+  yolo = yolo_predict(frame, True)
+  hands = hand_predict(frame, True)
   mouth = mouth_predict(frame, False)  
 
   # show frame

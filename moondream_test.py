@@ -2,6 +2,7 @@ import cv2
 from transformers import AutoModelForCausalLM
 from PIL import Image
 import torch
+import time
 
 # Load the model
 model = AutoModelForCausalLM.from_pretrained(
@@ -17,13 +18,18 @@ while True:
     if not ret:
         break
     image = Image.fromarray(frame)
+    start_time = time.time()
     encoded_image = model.encode_image(image)
-    
+    print(f"Encoded image time: {time.time() - start_time}")
+    start_time = time.time()
     result = model.query(encoded_image, "Is the person in the image smiling with their teeth or do they have their mouth wide open? respond only with Smile or Open.")
+    print(f"Query time: {time.time() - start_time}")
+    start_time = time.time()
     answer = result["answer"]
     print(f"Answer: {answer}")
     
     result = model.detect(encoded_image, "toothbrush")
+    print(f"Detect time: {time.time() - start_time}")
     detections = result["objects"]
     
     for obj in detections:
