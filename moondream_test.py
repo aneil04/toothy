@@ -17,6 +17,7 @@ while True:
     ret, frame = cam.read()
     if not ret:
         break
+    frame_start = time.time()
     image = Image.fromarray(frame)
     start_time = time.time()
     encoded_image = model.encode_image(image)
@@ -27,10 +28,13 @@ while True:
     start_time = time.time()
     answer = result["answer"]
     print(f"Answer: {answer}")
-    
-    result = model.detect(encoded_image, "toothbrush")
+    settings = {"max_objects": 1}
+    result = model.detect(encoded_image, "mouth", settings)
     print(f"Detect time: {time.time() - start_time}")
     detections = result["objects"]
+    
+    fps = 1 / (time.time() - frame_start)
+    print(f"FPS: {fps}")
     
     for obj in detections:
       x_min = obj["x_min"] * image.width

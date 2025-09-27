@@ -125,11 +125,12 @@ while cap.isOpened():
   success, frame = cap.read()
   if not success:
     break
+  frame = cv2.flip(frame, 1)
   
   # run inference
   yolo = yolo_predict(frame, True)
   hands = hand_predict(frame, True)
-  mouth = mouth_predict(frame, False)  
+  mouth = mouth_predict(frame, True)  
 
   # show frame
   cv2.imshow("Toothbrush Detection", frame)
