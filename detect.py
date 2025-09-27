@@ -127,9 +127,9 @@ while cap.isOpened():
     break
   
   # run inference
-  yolo = yolo_predict(frame, True)
-  hands = hand_predict(frame, True)
-  mouth = mouth_predict(frame, True)  
+  yolo = yolo_predict(frame, False)
+  hands = hand_predict(frame, False)
+  mouth = mouth_predict(frame, False)  
 
   # show frame
   cv2.imshow("Toothbrush Detection", frame)
