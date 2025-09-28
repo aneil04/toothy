@@ -169,13 +169,21 @@ def mouth_detect(frame, draw=False, mp_fd=mp_fd, mp_fm=mp_fm):
       return res.multi_face_landmarks[0]
   return None
 
-def predict_frame(frame):
+last_yolo = None
+last_hands = None
+last_mouth = None
+
+def predict_frame(frame, last_yolo=last_yolo, last_hands=last_hands, last_mouth=last_mouth):
   frame_width = frame.shape[1]
   frame_height = frame.shape[0]
   
   yolo = yolo_predict(frame, True)
   hands = hand_predict(frame, True)
   mouth = mouth_predict(frame, True)
+  
+  last_yolo = last_yolo if last_yolo is not None else yolo
+  last_hands = last_hands if last_hands is not None else hands
+  last_mouth = last_mouth if last_mouth is not None else mouth
   
   if yolo is not None and hands is not None and mouth is not None:
     # collect all the data
