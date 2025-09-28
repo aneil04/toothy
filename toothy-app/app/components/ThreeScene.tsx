@@ -5,10 +5,17 @@ import { OrbitControls, Environment, useGLTF } from '@react-three/drei';
 import { Suspense, useMemo } from 'react';
 import { Mesh, Material } from 'three';
 
+const tooth_material_base = <meshStandardMaterial color="#f8edff" roughness={1} metalness={0} /> // 0
+const tooth_material_highlight = <meshStandardMaterial color="#34a8eb" roughness={1} metalness={0} /> // 1
+const gum_material = <meshStandardMaterial color="#fa7890" roughness={1} metalness={0} /> // 2
+
+const materials = [0, 0, 0, 2, 0, 0, 0, 0, 0, 0]
+const material_map = [tooth_material_base, tooth_material_highlight, gum_material]
+
 // Component to load and display a GLTF model with individual part control
 function Model({ url }: { url: string }) {
   const { scene } = useGLTF(url);
-  
+
   // Extract all meshes from the scene with their materials and positions
   const meshes = useMemo(() => {
     const extractedMeshes: Array<{
@@ -19,7 +26,7 @@ function Model({ url }: { url: string }) {
       rotation: [number, number, number];
       scale: [number, number, number];
     }> = [];
-    
+
     scene.traverse((child) => {
       if (child instanceof Mesh && child.geometry && child.material) {
         extractedMeshes.push({
@@ -32,37 +39,34 @@ function Model({ url }: { url: string }) {
         });
       }
     });
-    
+
     console.log(`Found ${extractedMeshes.length} parts:`, extractedMeshes.map(m => m.name));
     return extractedMeshes;
   }, [scene]);
-  
+
   return (
     <group position={[0, 1, 0]} scale={1}>
       {meshes.map((mesh, index) => (
         <mesh
           key={`${mesh.name}-${index}`}
           geometry={mesh.geometry}
-          material={mesh.material}
           position={mesh.position}
           rotation={mesh.rotation}
           scale={mesh.scale}
           name={mesh.name}
         >
-          <meshStandardMaterial color="white" roughness={0.4} metalness={0.1} />
+          {material_map[materials[index]]}
         </mesh>
       ))}
     </group>
   );
 }
 
-
 function Scene({ modelUrl }: { modelUrl?: string }) {
   return (
     <>
       {/* Basic lighting */}
       <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1} />
 
       {/* Load 3D model if URL provided, otherwise show placeholder */}
       {modelUrl && <Model url={modelUrl} />}
@@ -85,9 +89,9 @@ export default function ThreeScene({ modelUrl }: ThreeSceneProps) {
     >
       <Suspense fallback={null}>
         <Scene modelUrl={modelUrl} />
-        <OrbitControls 
-          enablePan={true} 
-          enableZoom={true} 
+        <OrbitControls
+          enablePan={true}
+          enableZoom={true}
           enableRotate={true}
           autoRotate={true}
           autoRotateSpeed={0.5}
