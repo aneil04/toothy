@@ -68,12 +68,10 @@ export default function WebcamCapture({ setInferenceResult }: { setInferenceResu
 
           if (frameCount > 10) {
             frameCount = 0
-            console.log("inference...");
             fetch("http://localhost:8000/infer", { method: "POST", body: form }).then(async (res) => {
               if (res.ok) {
                 // Expect JSON from FastAPI: { detections: [...], latency_ms: ... }
                 const json = await res.json();
-                console.log("Inference response:", json);
 
                 if (Object.keys(json).length > 0) {
                   setInferenceResult(json);

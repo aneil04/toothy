@@ -1,14 +1,15 @@
 'use client';
 
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, useGLTF } from '@react-three/drei';
-import { Suspense, useMemo } from 'react';
+import { OrbitControls, Environment, useGLTF, OrbitControlsProps } from '@react-three/drei';
+import { Suspense, useMemo, useRef, useEffect } from 'react';
 import { Mesh, Material } from 'three';
+import { CameraControls } from '@react-three/drei';
 
-const gum_material = <meshStandardMaterial color="#fa7890" roughness={1} metalness={0} /> // 2
-const tooth_material_50 = <meshStandardMaterial color="#eff6ff" roughness={1} metalness={0} /> // 0
-const tooth_material_300 = <meshStandardMaterial color="#8ec5ff" roughness={1} metalness={0} /> // 0
-const tooth_material_500 = <meshStandardMaterial color="#2b7fff" roughness={1} metalness={0} /> // 0
+const gum_material = <meshStandardMaterial color="#fa7890" roughness={1} metalness={0} />
+const tooth_material_50 = <meshStandardMaterial color="#eff6ff" roughness={1} metalness={0} />
+const tooth_material_300 = <meshStandardMaterial color="#8ec5ff" roughness={1} metalness={0} />
+const tooth_material_500 = <meshStandardMaterial color="#2b7fff" roughness={1} metalness={0} />
 
 const material_map = [gum_material, tooth_material_50, tooth_material_300, tooth_material_500]
 // Component to load and display a GLTF model with individual part control
@@ -79,20 +80,25 @@ function Scene({ modelUrl, materials }: { modelUrl?: string, materials: number[]
 interface ThreeSceneProps {
   modelUrl?: string;
   materials: number[];
+  target: number[];
 }
 
-export default function ThreeScene({ modelUrl, materials }: ThreeSceneProps) {
+export default function ThreeScene({ modelUrl, materials, target }: ThreeSceneProps) {
+  const cameraControlRef = useRef<CameraControls | null>(null);
+
+  useEffect(() => {
+    cameraControlRef.current?.setPosition(target[0], target[1], target[2], true);
+    cameraControlRef.current?.setTarget(0, 0, 0, true);
+  }, [target]);
+
   return (
     <Canvas
-      camera={{ position: [0, 0, 5], fov: 75 }}
       style={{ background: '#eff6ff' }}
+      onClick={() => console.log(cameraControlRef.current?.camera.position)}
     >
       <Suspense fallback={null}>
+        <CameraControls ref={cameraControlRef} />
         <Scene modelUrl={modelUrl} materials={materials} />
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-        />
       </Suspense>
     </Canvas>
   );

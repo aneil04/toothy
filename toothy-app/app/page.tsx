@@ -17,11 +17,25 @@ const name2material_index = {
   "open_right_up": 9,
 }
 
+const name2camera_position = {
+  "closed_left": [2.085292091768274, 0.007233457801130938, 1.3264897402091733],   
+  "closed_mid": [.00712, -.241229, 2.99346],
+  "closed_right": [2.2476935549864976, 0.16724565229885707, 1.7304633412464692],
+  "open_left_down": [1.4591313587919377, 1.0099646306095595, -0.9323421471254743],
+  "open_mid_down": [0.07246976966676417, 0.5845779281310097, -1.8194629686196284],
+  "open_right_down": [-0.9051147919671568, 0.6734826316386121, -1.0976789075419920],
+  "open_left_up": [1.2521591693984941, -0.9795206412506892, -1.2577016925718894],
+  "open_mid_up": [0.06939446771591531, -1.0472579634526507, -1.296230192524649],
+  "open_right_up": [-0.8490048957648623, -1.075852464878571, -1.0329028618963247],
+}
+
+
 export default function VideoStreamPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [time, setTime] = useState(0)
   const [inferenceResult, setInferenceResult] = useState<any>(null)
   const [materials, setMaterials] = useState<number[]>([1, 1, 1, 0, 1, 1, 1, 1, 1, 1])
+  const [target, setTarget] = useState<number[]>([0, 0, 0])
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
@@ -55,6 +69,8 @@ export default function VideoStreamPage() {
     const section = inferenceResult.pred_name
     const index = name2material_index[section as keyof typeof name2material_index]
     incrementMaterial(index)
+    const target = name2camera_position[section as keyof typeof name2camera_position]
+    setTarget(target)
   }, [inferenceResult])
 
   const formatTime = (seconds: number) => {
@@ -92,7 +108,7 @@ export default function VideoStreamPage() {
         {/* Phone screen with full canvas */}
         <div className="bg-white rounded-[2.5rem] border-8 border-black w-full h-full relative overflow-hidden">
           {/* <canvas ref={canvasRef} className="w-full h-full bg-red-200" width={320} height={640} /> */}
-          <ThreeScene modelUrl="/teeth.glb" materials={materials} />
+          <ThreeScene modelUrl="/teeth.glb" materials={materials} target={target} />
           <div className="absolute top-20 left-0 right-0 text-center z-20">
             <div className="text-6xl text-black rounded-lg mx-6 py-2">
               {formatTime(time)}
