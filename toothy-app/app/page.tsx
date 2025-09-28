@@ -10,13 +10,12 @@ export default function Home() {
   return (
     <div className="w-full h-screen bg-red-300 p-10">
       {/* To load a model, uncomment and modify the line below: */}
-      <ThreeScene modelUrl="/teeth.glb" />
-      <WebcamCapture />
+      {/* <WebcamCapture /> */}
     </div>
   );
 }
 
-export function WebcamCapture() {
+export function WebcamCapture({ setInferenceResult }: { setInferenceResult: (result: any) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const sendingRef = useRef(false);
@@ -90,6 +89,10 @@ export function WebcamCapture() {
                 // Expect JSON from FastAPI: { detections: [...], latency_ms: ... }
                 const json = await res.json();
                 console.log("Inference response:", json);
+
+                if (Object.keys(json).length > 0) {
+                  setInferenceResult(json);
+                }
               } else {
                 console.warn("Inference HTTP error:", res.status);
               }

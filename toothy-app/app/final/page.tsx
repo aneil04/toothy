@@ -5,10 +5,23 @@ import { Button } from "@/components/ui/button"
 import ThreeScene from "../components/ThreeScene"
 import { WebcamCapture } from "../page"
 
+const name2material_index = {
+  "closed_left": 0,
+  "closed_mid": 1,
+  "closed_right": 2,
+  "open_left_down": 4,
+  "open_mid_down": 6,
+  "open_right_down": 8,
+  "open_left_up": 5,
+  "open_mid_up": 7,
+  "open_right_up": 9,
+}
+
 export default function VideoStreamPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [time, setTime] = useState(0)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [inferenceResult, setInferenceResult] = useState<any>(null)
+  const [materials, setMaterials] = useState<number[]>([1, 1, 1, 0, 1, 1, 1, 1, 1, 1])
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
@@ -25,6 +38,24 @@ export default function VideoStreamPage() {
       if (interval) clearInterval(interval)
     }
   }, [isRunning, time])
+
+  const incrementMaterial = (index: number) => {
+    setMaterials((prevMaterials) => {
+      const newMaterials = [...prevMaterials]
+      newMaterials[index] = Math.max((newMaterials[index] + 1), 3)
+      return newMaterials
+    })
+  }
+  
+  useEffect(() => {
+    if (!inferenceResult) {
+      return
+    }
+
+    const section = inferenceResult.pred_name
+    const index = name2material_index[section as keyof typeof name2material_index]
+    incrementMaterial(index)
+  }, [inferenceResult])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -45,8 +76,10 @@ export default function VideoStreamPage() {
     <div className="flex flex-row gap-20 justify-center bg-gray-200 h-screen p-20">
       {/* Video Stream Area - Left Side */}
       <div className="flex flex-col gap-8">
-        <WebcamCapture />
-        <div className="text-4xl text-gray-600 font-light">video here</div>
+        <WebcamCapture setInferenceResult={setInferenceResult} />
+        <div className="flex flex-col gap-2">
+          <span className="text-4xl text-gray-600 font-light">{inferenceResult ? `Prediction: ${inferenceResult.pred_name}` : "inference..."}</span>
+        </div>
       </div>
 
       {/* Mobile Device Mockup - Right Side */}
@@ -57,7 +90,7 @@ export default function VideoStreamPage() {
         {/* Phone screen with full canvas */}
         <div className="bg-white rounded-[2.5rem] border-8 border-black w-full h-full relative overflow-hidden">
           {/* <canvas ref={canvasRef} className="w-full h-full bg-red-200" width={320} height={640} /> */}
-          <ThreeScene modelUrl="/teeth.glb" />
+          <ThreeScene modelUrl="/teeth.glb" materials={materials} />
           <div className="absolute top-20 left-0 right-0 text-center z-20">
             <div className="text-6xl text-black rounded-lg mx-6 py-2">
               {formatTime(time)}
