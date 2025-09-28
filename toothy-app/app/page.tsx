@@ -16,7 +16,7 @@ export default function Home() {
   );
 }
 
-function WebcamCapture() {
+export function WebcamCapture() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const sendingRef = useRef(false);
@@ -130,15 +130,14 @@ function WebcamCapture() {
 
   return (
     <div>
-      <h2>Webcam Feed</h2>
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
-        style={{ width: "640px", height: "480px", border: "1px solid black", transform: "scaleX(-1)" }}
+        className='hidden'
       />
-      {imgUrl && <img src={imgUrl} alt="Processed" className="border rounded max-w-full" />}
+      {imgUrl && <img src={imgUrl} alt="Processed" className="rounded-3xl shadow-lg" />}
     </div>
   );
 }
