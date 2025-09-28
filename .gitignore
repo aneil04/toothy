@@ -6,3 +6,45 @@ yolo11s.pt
 toothbrush.png
 __pycache__
 test.py
+
+
+# nodejs stuff
+# dependencies
+toothy-app/node_modules
+toothy-app/.pnp
+toothy-app/.pnp.*
+toothy-app/.yarn/*
+toothy-app/.yarn/patches
+toothy-app/.yarn/plugins
+toothy-app/.yarn/releases
+toothy-app/.yarn/versions
+
+# testing
+toothy-app/coverage
+
+# next.js
+toothy-app/.next/
+toothy-app/out/
+
+# production
+toothy-app/build
+
+# misc
+.DS_Store
+toothy-app/*.pem
+
+# debug
+toothy-app/npm-debug.log*
+toothy-app/yarn-debug.log*
+toothy-app/yarn-error.log*
+toothy-app/.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+toothy-app/.env*
+
+# vercel
+toothy-app/.vercel
+
+# typescript
+toothy-app/*.tsbuildinfo
+toothy-app/next-env.d.ts
