@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="w-full h-screen bg-red-300 p-10">
       {/* To load a model, uncomment and modify the line below: */}
-      <ThreeScene modelUrl="/human_teeth.glb" />
+      <ThreeScene modelUrl="/teeth.glb" />
     </div>
   );
 }
