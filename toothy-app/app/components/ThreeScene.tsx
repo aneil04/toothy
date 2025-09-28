@@ -85,7 +85,7 @@ export default function ThreeScene({ modelUrl }: ThreeSceneProps) {
   return (
     <Canvas
       camera={{ position: [0, 0, 5], fov: 75 }}
-      style={{ background: '#f0f0f0' }}
+      style={{ background: '#eff6ff' }}
     >
       <Suspense fallback={null}>
         <Scene modelUrl={modelUrl} />
