@@ -34,7 +34,7 @@ yolo.to("cuda")
 
 # load mediapipe hands
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.5)
+hands = mp_hands.Hands(static_image_mode=True, max_num_hands=2, min_detection_confidence=0.5)
 
 # load mediapipe face
 mp_fd = mp.solutions.face_detection
@@ -51,6 +51,16 @@ moondream = AutoModelForCausalLM.from_pretrained(
     dtype=torch.bfloat16,
     device_map="cuda", # "cuda" on Nvidia GPUs
 )
+
+def draw_face_landmarks(frame, face_landmarks, mp_drawing=mp_drawing, mp_fm=mp_fm, mp_styles=mp_styles):
+    """Draw all face landmarks and connections."""
+    mp_drawing.draw_landmarks(
+        image=frame,
+        landmark_list=face_landmarks,
+        connections=mp_fm.FACEMESH_TESSELATION,   # full mesh
+        landmark_drawing_spec=None,
+        connection_drawing_spec=mp_styles.get_default_face_mesh_tesselation_style()
+    )
 
 def yolo_predict(frame, draw=False, yolo=yolo):
   yolo_res = yolo.predict(frame, conf=0.25, verbose=False, device="cuda:1")
@@ -119,7 +129,6 @@ def hand_predict(frame, draw=False, hands=hands):
       return (wrist, mid, tip)
   return None
 
-
 def mouth_predict(frame, draw=False, moondream=moondream):
   image = Image.fromarray(frame)
   encoded_image = moondream.encode_image(image)
@@ -151,77 +160,81 @@ def mouth_predict(frame, draw=False, moondream=moondream):
     return (is_smiling, detections[0])
   return None
 
+def mouth_detect(frame, draw=False, mp_fd=mp_fd, mp_fm=mp_fm):
+  with mp_fd.FaceDetection(model_selection=0, min_detection_confidence=0.5) as fd, mp_fm.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True) as fm:
+    res = fm.process(frame)
+    if res.multi_face_landmarks:
+      if draw:
+        draw_face_landmarks(frame, res.multi_face_landmarks[0])
+      return res.multi_face_landmarks[0]
+  return None
 
-cap = cv2.VideoCapture(0)
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-    frame = cv2.flip(frame, 1)
-    frame_width = frame.shape[1]
-    frame_height = frame.shape[0]
+def predict_frame(frame):
+  frame_width = frame.shape[1]
+  frame_height = frame.shape[0]
+  
+  yolo = yolo_predict(frame, True)
+  hands = hand_predict(frame, True)
+  mouth = mouth_predict(frame, True)
+  
+  if yolo is not None and hands is not None and mouth is not None:
+    # collect all the data
+    tb_x1, tb_y1, tb_x2, tb_y2 = yolo["bbox"]
+    tb_mid_x = (tb_x1 + tb_x2) / 2
+    tb_mid_y = (tb_y1 + tb_y2) / 2
     
-    yolo = yolo_predict(frame, True)
-    hands = hand_predict(frame, True)
-    mouth = mouth_predict(frame, True)
+    hand_wrist, hand_mid, hand_tip = hands
+    hw_x, hw_y = hand_wrist[0] * frame_width, hand_wrist[1] * frame_height
+    hm_x, hm_y = hand_mid[0] * frame_width, hand_mid[1] * frame_height
+    ht_x, ht_y = int(hand_tip[0] * frame_width), hand_tip[1] * frame_height
     
-    if yolo is not None and hands is not None and mouth is not None:
-      # collect all the data
-      tb_x1, tb_y1, tb_x2, tb_y2 = yolo["bbox"]
-      tb_mid_x = (tb_x1 + tb_x2) / 2
-      tb_mid_y = (tb_y1 + tb_y2) / 2
-      
-      hand_wrist, hand_mid, hand_tip = hands
-      hw_x, hw_y = hand_wrist[0] * frame_width, hand_wrist[1] * frame_height
-      hm_x, hm_y = hand_mid[0] * frame_width, hand_mid[1] * frame_height
-      ht_x, ht_y = int(hand_tip[0] * frame_width), hand_tip[1] * frame_height
-      
-      is_smiling, mouth_bbox = mouth
-      m_x1 = mouth_bbox["x_min"] * frame_width
-      m_y1 = mouth_bbox["y_min"] * frame_height
-      m_x2 = mouth_bbox["x_max"] * frame_width
-      m_y2 = mouth_bbox["y_max"] * frame_height
-      mouth_mid_x = (m_x1 + m_x2) / 2
-      mouth_mid_y = (m_y1 + m_y2) / 2
-      
-      # center the data to the origin (relative to the mouth)
-      delta_x = -mouth_mid_x
-      delta_y = -mouth_mid_y
+    is_smiling, mouth_bbox = mouth
+    m_x1 = mouth_bbox["x_min"] * frame_width
+    m_y1 = mouth_bbox["y_min"] * frame_height
+    m_x2 = mouth_bbox["x_max"] * frame_width
+    m_y2 = mouth_bbox["y_max"] * frame_height
+    mouth_mid_x = (m_x1 + m_x2) / 2
+    mouth_mid_y = (m_y1 + m_y2) / 2
+    
+    # center the data to the origin (relative to the mouth)
+    delta_x = -mouth_mid_x
+    delta_y = -mouth_mid_y
 
-      tb_mid_x += delta_x
-      tb_mid_y += delta_y
-      
-      hw_x += delta_x
-      hw_y += delta_y
-      hm_x += delta_x
-      hm_y += delta_y
-      ht_x += delta_x
-      ht_y += delta_y
-      
-      mouth_mid_x += delta_x
-      mouth_mid_y += delta_y
-      
-      row = {
-        "tb_mid_x": tb_mid_x, "tb_mid_y": tb_mid_y,
-        "hw_x": hw_x, "hw_y": hw_y,
-        "hm_x": hm_x, "hm_y": hm_y,
-        "ht_x": ht_x, "ht_y": ht_y,
-        "is_smiling": is_smiling
-      }
-      
-      res = predict_one(
-        row=row,
-        model=model,
-        scaler_mean=mean,
-        scaler_scale=scale,
-        feature_cols=DEFAULT_FEATURE_COLS,
-        use_relative_diffs=False,
-        device="cpu",
-      )
-      print(res)
-      
-    cv2.imshow("frame", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-cap.release()
-cv2.destroyAllWindows()
+    tb_mid_x += delta_x
+    tb_mid_y += delta_y
+    
+    hw_x += delta_x
+    hw_y += delta_y
+    hm_x += delta_x
+    hm_y += delta_y
+    ht_x += delta_x
+    ht_y += delta_y
+    
+    mouth_mid_x += delta_x
+    mouth_mid_y += delta_y
+    
+    row = {
+      "tb_mid_x": tb_mid_x, "tb_mid_y": tb_mid_y,
+      "hw_x": hw_x, "hw_y": hw_y,
+      "hm_x": hm_x, "hm_y": hm_y,
+      "ht_x": ht_x, "ht_y": ht_y,
+      "is_smiling": is_smiling
+    }
+    
+    res = predict_one(
+      row=row,
+      model=model,
+      scaler_mean=mean,
+      scaler_scale=scale,
+      feature_cols=DEFAULT_FEATURE_COLS,
+      use_relative_diffs=False,
+      device="cpu",
+    )
+    
+    return res
+  return None
+
+def detect_frame(frame):
+  yolo = yolo_predict(frame, True)
+  hands = hand_predict(frame, True)
+  mouth = mouth_detect(frame, True)
