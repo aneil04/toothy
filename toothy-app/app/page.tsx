@@ -42,7 +42,7 @@ export default function VideoStreamPage() {
   const incrementMaterial = (index: number) => {
     setMaterials((prevMaterials) => {
       const newMaterials = [...prevMaterials]
-      newMaterials[index] = Math.max((newMaterials[index] + 1), 3)
+      newMaterials[index] = Math.min((newMaterials[index] + 1), 3)
       return newMaterials
     })
   }
@@ -70,6 +70,8 @@ export default function VideoStreamPage() {
   const handleReset = () => {
     setTime(0)
     setIsRunning(false)
+    setMaterials([1, 1, 1, 0, 1, 1, 1, 1, 1, 1])
+    setInferenceResult(null)
   }
 
   return (
@@ -100,7 +102,7 @@ export default function VideoStreamPage() {
           <div className="absolute bottom-20 left-0 right-0 flex gap-3 justify-center items-center z-20">
             <Button
               onClick={handleStartStop}
-              className="bg-blue-500 hover:bg-blue-600 border border-blue-500 hover:border-blue-600 text-white px-20 py-6 rounded-xl text-lg backdrop-blur-sm shadow-lg"
+              className="bg-blue-500 hover:bg-blue-600 border border-blue-500 hover:border-blue-600 text-white px-10 py-6 rounded-xl text-lg backdrop-blur-sm shadow-lg"
             >
               {isRunning ? "stop" : "start"}
             </Button>
@@ -108,7 +110,7 @@ export default function VideoStreamPage() {
               <Button
                 onClick={handleReset}
                 variant="outline"
-                className="px-20 py-6 rounded-xl text-lg bg-white/90 backdrop-blur-sm shadow-lg"
+                className="px-10 py-6 rounded-xl text-lg bg-white/90 backdrop-blur-sm shadow-lg border-gray-300 border-2"
               >
                 reset
               </Button>
